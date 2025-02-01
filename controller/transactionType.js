@@ -1,30 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const Product = require('../model/product'); // Ensure path is correct according to your project structure
-const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const TransactionType = require('../model/TransactionType'); // Sesuaikan path sesuai struktur proyek
 const catchAsyncErrors = require('../middleware/catchAsyncErrors');
 const ErrorHandler = require('../utils/ErrorHandler');
 const Validator = require('fastest-validator');
 const v = new Validator();
 
-// Create product
+// Create Transaction Type
 router.post(
   '',
-  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
-    const productSchema = {
-      title: { type: 'string', min: 5, max: 100, empty: false },
-      description: { type: 'string', optional: true },
-      images: { type: 'array', items: 'string', optional: true },
-      category: { type: 'string', empty: false },
-      stock: { type: 'number', min: 0, optional: true },
-      price: { type: 'number', empty: false },
+    const transactionTypeSchema = {
+      name: { type: 'string', min: 3, empty: false },
+      type1: { type: 'string', optional: true },
+      type2: { type: 'string', optional: true },
     };
 
     const { body } = req;
 
     // Validate input data
-    const validationResponse = v.validate(body, productSchema);
+    const validationResponse = v.validate(body, transactionTypeSchema);
 
     if (validationResponse !== true) {
       return res.status(400).json({
@@ -38,12 +33,12 @@ router.post(
     }
 
     try {
-      // Create new product
-      const product = await Product.create(body);
+      // Create new transaction type
+      const transactionType = await TransactionType.create(body);
       return res.status(201).json({
         code: 201,
         status: 'success',
-        data: product,
+        data: transactionType,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
@@ -51,23 +46,34 @@ router.post(
   })
 );
 
-// Get products
+// Get All Transaction Types
 router.get(
   '/list',
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const products = await Product.find()
-        .sort({ createdAt: -1 })
-        .populate('category')
-        .populate({
-          path: 'comment',
-          select: ['message', 'name'],
-        });
+      const transactionTypes = await TransactionType.find().sort({ createdAt: -1 });
+
+      const formattedData = transactionTypes.map((type) => {
+        let formattedName = type.name;
+        if (type.type1 && type.type2) {
+          formattedName += ` (${type.type1} & ${type.type2})`;
+        } else if (type.type1) {
+          formattedName += ` (${type.type1})`;
+        } else if (type.type2) {
+          formattedName += ` (${type.type2})`;
+        }
+
+        return {
+          id: type._id,
+          name: formattedName,
+          bank: type.name,
+        };
+      });
 
       return res.status(200).json({
         code: 200,
         status: 'success',
-        data: products,
+        data: formattedData,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
@@ -75,30 +81,28 @@ router.get(
   })
 );
 
-// Get single product
+
+// Get Transaction Type by ID
 router.get(
   '/:id',
   catchAsyncErrors(async (req, res, next) => {
-    try {
-      const product = await Product.findById(req.params.id)
-        .populate('category')
-        .populate({
-          path: 'comment',
-          select: ['message', 'name'],
-        });
+    const transactionTypeId = req.params.id;
 
-      if (!product) {
+    try {
+      const transactionType = await TransactionType.findById(transactionTypeId);
+
+      if (!transactionType) {
         return res.status(404).json({
           code: 404,
           status: 'error',
-          message: 'Product not found',
+          message: 'Transaction Type not found',
         });
       }
 
       return res.status(200).json({
         code: 200,
         status: 'success',
-        data: product,
+        data: transactionType,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
@@ -106,24 +110,21 @@ router.get(
   })
 );
 
-// Update product
+// Update Transaction Type
 router.put(
   '/:id',
-  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
-    const productSchema = {
-      title: { type: 'string', min: 5, max: 100, optional: true },
-      description: { type: 'string', optional: true },
-      images: { type: 'array', items: 'string', optional: true },
-      category: { type: 'string', optional: true },
-      stock: { type: 'number', min: 0, optional: true },
-      price: { type: 'number', optional: true },
+    const transactionTypeId = req.params.id;
+    const transactionTypeSchema = {
+      name: { type: 'string', min: 3, empty: false },
+      type1: { type: 'string', optional: true },
+      type2: { type: 'string', optional: true },
     };
 
     const { body } = req;
 
     // Validate input data
-    const validationResponse = v.validate(body, productSchema);
+    const validationResponse = v.validate(body, transactionTypeSchema);
 
     if (validationResponse !== true) {
       return res.status(400).json({
@@ -137,23 +138,20 @@ router.put(
     }
 
     try {
-      const product = await Product.findByIdAndUpdate(req.params.id, body, {
-        new: true,
-        runValidators: true,
-      });
+      const transactionType = await TransactionType.findByIdAndUpdate(transactionTypeId, body, { new: true, runValidators: true });
 
-      if (!product) {
+      if (!transactionType) {
         return res.status(404).json({
           code: 404,
           status: 'error',
-          message: 'Product not found',
+          message: 'Transaction Type not found',
         });
       }
 
       return res.status(200).json({
         code: 200,
         status: 'success',
-        data: product,
+        data: transactionType,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
@@ -161,28 +159,30 @@ router.put(
   })
 );
 
-// Delete product
+// Delete Transaction Type
 router.delete(
   '/:id',
-  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
-    try {
-      const product = await Product.findById(req.params.id);
+    const transactionTypeId = req.params.id;
 
-      if (!product) {
+    try {
+      const transactionType = await TransactionType.findById(transactionTypeId);
+
+      if (!transactionType) {
         return res.status(404).json({
           code: 404,
           status: 'error',
-          message: 'Product not found',
+          message: 'Transaction Type not found',
         });
       }
 
-      await Product.findByIdAndDelete(req.params.id);
+      // Delete transaction type
+      await TransactionType.findByIdAndDelete(transactionTypeId);
 
       return res.status(200).json({
         code: 200,
         status: 'success',
-        message: 'Product deleted successfully',
+        message: 'Transaction Type deleted successfully',
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));

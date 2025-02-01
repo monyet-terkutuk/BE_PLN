@@ -40,26 +40,14 @@ if (process.env.NODE_ENV !== "PRODUCTION") {
   });
 }
 
-// import routes
-const account = require("./controller/account");
-const balance = require("./controller/Balance");
+
 const user = require("./controller/user");
 const transaction = require("./controller/transaction");
-const product = require("./controller/product");
-const comment = require("./controller/comment");
-const category = require("./controller/category");
-const dashboard = require("./controller/dasboard");
-const journal = require("./controller/journal");
+const transactionType = require("./controller/transactionType");
 
 app.use("/users", user);
-app.use("/products", product);
 app.use("/transactions", transaction);
-app.use("/comments", comment);
-app.use("/categories", category);
-app.use("/dashboard", dashboard);
-app.use("/account", account);
-app.use("/journal", journal);
-app.use("/balance", balance);
+app.use("/transactions-type", transactionType);
 
 
 // app.use("", welcome);
