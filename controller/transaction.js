@@ -22,7 +22,7 @@ router.post(
       net_amount: { type: 'number', min: 0 },
       mdr: { type: 'number', min: 0, optional: true },
       status: { type: 'string', empty: false },
-      date: { type: 'date', optional: true },
+      date: { type: 'string', optional: true },
       difference: { type: 'number', optional: true },
     };
 
@@ -72,13 +72,24 @@ router.get(
         .populate('transaction_type')
         .sort({ createdAt: -1 });
 
+      const formattedTransactions = transactions.map((transaction) => ({
+        ...transaction.toObject(),
+        transaction_type: transaction.transaction_type
+          ? {
+            id: transaction.transaction_type._id,
+            name: `${transaction.transaction_type.name} (${transaction.transaction_type.type1} & ${transaction.transaction_type.type2})`,
+            bank: transaction.transaction_type.name,
+          }
+          : null,
+      }));
+
       res.status(200).json({
         meta: {
           message: 'Transactions retrieved successfully',
           code: 200,
           status: 'success',
         },
-        data: transactions,
+        data: formattedTransactions,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
@@ -100,10 +111,22 @@ router.get(
           data: null,
         });
       }
+
+      const formattedTransaction = {
+        ...transaction.toObject(),
+        transaction_type: transaction.transaction_type
+          ? {
+            id: transaction.transaction_type._id,
+            name: `${transaction.transaction_type.name} (${transaction.transaction_type.type1} & ${transaction.transaction_type.type2})`,
+            bank: transaction.transaction_type.name,
+          }
+          : null,
+      };
+
       res.status(200).json({
         code: 200,
         message: 'Transaction retrieved successfully',
-        data: transaction,
+        data: formattedTransaction,
       });
     } catch (error) {
       return next(new ErrorHandler(error.message, 500));
