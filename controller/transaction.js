@@ -62,6 +62,80 @@ router.post(
   })
 );
 
+// Update transaction
+router.put(
+  '/:id',
+  isAuthenticated,
+  catchAsyncErrors(async (req, res, next) => {
+    const transactionSchema = {
+      mid: { type: 'string', empty: false, optional: true },
+      tid: { type: 'string', optional: true },
+      transaction_type: { type: 'string', empty: false, optional: true },
+      batch: { type: 'string', optional: true },
+      amount: { type: 'number', min: 0, optional: true },
+      net_amount: { type: 'number', min: 0, optional: true },
+      mdr: { type: 'number', min: 0, optional: true },
+      status: { type: 'string', empty: false, optional: true },
+      date: { type: 'string', optional: true },
+      difference: { type: 'number', optional: true },
+    };
+
+    const { body } = req;
+    const transactionId = req.params.id;
+
+    // Validasi input
+    const validationResponse = v.validate(body, transactionSchema);
+    if (validationResponse !== true) {
+      return res.status(400).json({
+        code: 400,
+        status: 'error',
+        data: {
+          error: 'Validation failed',
+          details: validationResponse,
+        },
+      });
+    }
+
+    try {
+      // Cari transaksi berdasarkan ID
+      const transaction = await Transaction.findById(transactionId);
+      if (!transaction) {
+        return res.status(404).json({
+          code: 404,
+          status: 'error',
+          data: { error: 'Transaction not found' },
+        });
+      }
+
+      // Jika transaction_type diubah, pastikan valid
+      if (body.transaction_type) {
+        const transactionType = await TransactionType.findById(body.transaction_type);
+        if (!transactionType) {
+          return res.status(404).json({
+            code: 404,
+            status: 'error',
+            data: { error: 'Transaction type not found' },
+          });
+        }
+      }
+
+      // Update transaksi
+      const updatedTransaction = await Transaction.findByIdAndUpdate(transactionId, body, {
+        new: true, // Mengembalikan data yang telah diperbarui
+        runValidators: true, // Pastikan validasi tetap dijalankan
+      });
+
+      res.status(200).json({
+        code: 200,
+        status: 'success',
+        data: updatedTransaction,
+      });
+    } catch (error) {
+      return next(new ErrorHandler(error.message, 500));
+    }
+  })
+);
+
 // Get all transactions
 router.get(
   '/list',
@@ -136,7 +210,7 @@ router.get(
 
 // Delete transaction
 router.delete(
-  '/delete/:id',
+  '/:id',
   isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
     try {
